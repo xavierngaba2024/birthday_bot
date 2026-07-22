@@ -156,23 +156,35 @@ def birthdays_today(contacts: list[Contact], today: dt.date) -> list[Contact]:
 # Journal des envois (anti-doublon)
 # ---------------------------------------------------------------------------
 
-def load_sent_today(today: dt.date) -> set[str]:
+def _load_log() -> dict[str, list[str]]:
+    """Journal au format {date ISO: [cles envoyees]}. Migre l'ancien
+    format mono-date {"date": ..., "keys": [...]} de facon transparente."""
     if not SENT_LOG.exists():
-        return set()
+        return {}
     try:
         data = json.loads(SENT_LOG.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return set()
-    if data.get("date") == today.isoformat():
-        return set(data.get("keys", []))
-    return set()
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    if "date" in data and "keys" in data:
+        return {str(data["date"]): list(data["keys"])}
+    return {d: list(k) for d, k in data.items() if isinstance(k, list)}
+
+
+def load_sent_today(today: dt.date) -> set[str]:
+    return set(_load_log().get(today.isoformat(), []))
 
 
 def mark_sent(today: dt.date, keys: set[str]) -> None:
-    payload = {"date": today.isoformat(), "keys": sorted(keys)}
+    log = _load_log()
+    log[today.isoformat()] = sorted(keys)
+    # Purge des dates vieilles de plus de 400 jours pour borner le fichier
+    cutoff = (today - dt.timedelta(days=400)).isoformat()
+    log = {d: k for d, k in sorted(log.items()) if d >= cutoff}
     try:
         SENT_LOG.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8"
         )
     except OSError as exc:
         logger.warning("Impossible d'ecrire le journal des envois : %s", exc)
