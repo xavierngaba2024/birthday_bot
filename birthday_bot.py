@@ -34,7 +34,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_MESSAGE = "Joyeux anniversaire {name} ! 🎉 Passe une excellente journée."
-DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m-%d", "%d/%m")
+DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y")
+YEARLESS_FORMATS = ("%m-%d", "%d/%m")
 PHONE_RE = re.compile(r"^\+\d{8,15}$")
 SENT_LOG = Path(".sent_log.json")
 
@@ -67,6 +68,14 @@ def parse_birthday(value: str) -> tuple[int, int]:
     for fmt in DATE_FORMATS:
         try:
             parsed = dt.datetime.strptime(value, fmt)
+            return parsed.month, parsed.day
+        except ValueError:
+            continue
+    # Dates sans annee : on en fixe une explicitement (bissextile, pour
+    # accepter le 29/02) car strptime sans annee est deprecie en 3.13+.
+    for fmt in YEARLESS_FORMATS:
+        try:
+            parsed = dt.datetime.strptime(f"2000 {value}", f"%Y {fmt}")
             return parsed.month, parsed.day
         except ValueError:
             continue
@@ -230,6 +239,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+
+    # Console Windows en cp1252 par defaut : force l'UTF-8 pour que les
+    # emojis des messages s'affichent au lieu de \U0001f389.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
