@@ -17,7 +17,7 @@ timeout /t 45 /nobreak >nul
 REM Utiliser le lanceur "py" si disponible (fiable sur Windows,
 REM meme si "python" n'est pas dans le PATH), sinon "python".
 set PYTHON=py
-where py >nul 2>nul || set PYTHON=python3.13
+where py >nul 2>nul || set PYTHON=python
 
 echo [Birthday Bot] Lancement (envoi reel)...
 

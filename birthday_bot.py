@@ -232,7 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Message par defaut. {name} = prenom du contact.")
     p.add_argument("--date", type=str, default=None,
                    help="Forcer une date (AAAA-MM-JJ) pour tester.")
-    p.add_argument("--wait", type=int, default=20,
+    p.add_argument("--wait", type=int, default=10,
                    help="Secondes d'attente que WhatsApp Web charge, par message.")
     p.add_argument("--verbose", action="store_true", help="Journalisation detaillee.")
     return p

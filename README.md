@@ -118,8 +118,10 @@ ligne prévue (ou renseignez `WHATSAPP_GROUP_ID`).
 - Être connecté à **WhatsApp Web** dans le navigateur par défaut (scan du
   QR code une première fois ; la session est ensuite mémorisée).
 - `pywhatkit` ouvre un onglet de navigateur par message et laisse quelques
-  secondes de chargement (`--wait`, 20 s par défaut). C'est la contrepartie
-  de la gratuité : la méthode est un peu plus lente et dépend de WhatsApp Web.
+  secondes de chargement (`--wait`, 10 s par défaut — augmentez la valeur,
+  par ex. `--wait 30`, si votre connexion ou votre PC est lent). C'est la
+  contrepartie de la gratuité : la méthode est un peu plus lente et dépend
+  de WhatsApp Web.
 
 ## Utilisation responsable
 
