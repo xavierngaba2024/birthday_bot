@@ -190,7 +190,8 @@ def send_message(contact: Contact, group_id, wait_time: int) -> None:
     except ImportError as exc:
         raise RuntimeError(
             "La bibliotheque 'pywhatkit' est requise pour l'envoi reel.\n"
-            "Installez-la avec : pip install -r requirements.txt"
+            "Installez-la avec : py -m pip install -r requirements.txt\n"
+            f"(detail de l'erreur d'import : {exc})"
         ) from exc
 
     if group_id:
