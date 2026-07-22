@@ -73,6 +73,33 @@ python birthday_bot.py --send --group AB123CDEFGHijklmn
 Vous pouvez aussi fixer l'ID une fois pour toutes via la variable
 d'environnement `WHATSAPP_GROUP_ID` (pratique avec le lanceur Windows).
 
+## Plusieurs groupes : un fichier CSV par groupe
+
+Pour gérer plusieurs groupes, créez un fichier par groupe en mettant
+l'ID du groupe **dans le nom du fichier** :
+
+```
+contacts.group.DqXw7svl2xl9vwPthHziGq.csv   → groupe n° 1
+contacts.group.AB123CDEFGHijklmn.csv        → groupe n° 2
+```
+
+Chaque fichier a le même format que le mode groupe (colonnes `name`,
+`birthday`, `message` facultative). Puis :
+
+```bash
+# Simulation : montre ce qui partirait, groupe par groupe
+python birthday_bot.py --all-groups
+
+# Envoi réel dans tous les groupes
+python birthday_bot.py --send --all-groups
+```
+
+Le bot parcourt tous les fichiers `contacts.group.<ID>.csv` du dossier
+(les modèles `*.example.csv` sont ignorés) et envoie les anniversaires
+du jour de chaque fichier dans son groupe. Une même personne présente
+dans plusieurs fichiers est souhaitée dans chaque groupe, l'anti-doublon
+étant compté par groupe.
+
 > Note : chaque anniversaire du jour donne lieu à un message distinct dans
 > le groupe. C'est un vrai message posté dans la conversation, visible par
 > tous les membres.
@@ -93,8 +120,11 @@ Les lignes invalides sont ignorées avec un avertissement.
 Un lanceur `run_birthday_bot.bat` est fourni. Il se place dans le bon
 dossier, attend 10 s que la connexion et WhatsApp Web soient prêts, puis
 lance le bot (augmentez ce délai dans le `.bat` si votre PC met du temps
-à se connecter au réseau après le démarrage). Pour le mode groupe, ouvrez le `.bat` et décommentez la
-ligne prévue (ou renseignez `WHATSAPP_GROUP_ID`).
+à se connecter au réseau après le démarrage). Le lanceur enchaîne :
+
+1. l'**envoi individuel** si un fichier `contacts.csv` existe ;
+2. l'**envoi dans tous les groupes** ayant un fichier
+   `contacts.group.<ID>.csv` (via `--all-groups`).
 
 **Planificateur de tâches Windows** :
 

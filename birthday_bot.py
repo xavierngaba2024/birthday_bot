@@ -17,6 +17,8 @@ Usage :
   python birthday_bot.py                          # simulation
   python birthday_bot.py --send                   # envoi individuel
   python birthday_bot.py --send --group AB123...   # envoi dans un groupe
+  python birthday_bot.py --send --all-groups       # tous les fichiers
+                                                   # contacts.group.<ID>.csv
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ DEFAULT_MESSAGE = "Joyeux anniversaire {name} ! ðŸŽ‰ Passe une excellente journÃ
 DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y")
 YEARLESS_FORMATS = ("%m-%d", "%d/%m")
 PHONE_RE = re.compile(r"^\+\d{8,15}$")
+GROUP_FILE_RE = re.compile(r"^contacts\.group\.(?P<gid>[A-Za-z0-9_-]+)\.csv$")
 SENT_LOG = Path(".sent_log.json")
 
 logger = logging.getLogger("birthday_bot")
@@ -89,7 +92,9 @@ def load_contacts(path: Path, default_message: str, group_mode: bool) -> list[Co
         raise FileNotFoundError(f"fichier de contacts introuvable : {path}")
 
     contacts: list[Contact] = []
-    with path.open(newline="", encoding="utf-8") as f:
+    # utf-8-sig : tolere le BOM que Windows (Excel, Notepad...) ajoute
+    # souvent en tete de fichier, sans effet sur un fichier UTF-8 sans BOM.
+    with path.open(newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         required = {"name", "birthday"} if group_mode else {"name", "phone", "birthday"}
         if reader.fieldnames is None or not required.issubset(reader.fieldnames):
@@ -126,8 +131,20 @@ def load_contacts(path: Path, default_message: str, group_mode: bool) -> list[Co
 
             contacts.append(Contact(name, phone, month, day, message))
 
-    logger.info("%d contact(s) valide(s) charge(s).", len(contacts))
+    logger.info("%d contact(s) valide(s) charge(s) depuis %s.", len(contacts), path)
     return contacts
+
+
+def find_group_files(directory: Path) -> dict[str, Path]:
+    """Trouve les fichiers contacts.group.<ID>.csv du dossier et retourne
+    {ID du groupe: chemin}. Les modeles *.example.csv sont exclus."""
+    result: dict[str, Path] = {}
+    for p in sorted(directory.glob("contacts.group.*.csv")):
+        m = GROUP_FILE_RE.match(p.name)
+        if not m or m.group("gid").lower() == "example":
+            continue
+        result[m.group("gid")] = p
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +257,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--group", default=os.environ.get("WHATSAPP_GROUP_ID"),
                    help="ID du groupe (partie finale du lien chat.whatsapp.com/...). "
                         "Peut aussi etre fourni via la variable WHATSAPP_GROUP_ID.")
+    p.add_argument("--all-groups", action="store_true",
+                   help="Traite tous les fichiers contacts.group.<ID>.csv du "
+                        "dossier courant, chacun vers son groupe. "
+                        "Ignore --file et --group.")
     p.add_argument("--message", default=DEFAULT_MESSAGE,
                    help="Message par defaut. {name} = prenom du contact.")
     p.add_argument("--date", type=str, default=None,
@@ -265,48 +286,75 @@ def main(argv=None) -> int:
         datefmt="%H:%M:%S",
     )
 
-    group_id = args.group or None
     today = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
 
-    try:
-        contacts = load_contacts(args.file, args.message, group_mode=bool(group_id))
-    except (FileNotFoundError, ValueError) as exc:
-        logger.error("%s", exc)
-        return 1
+    # Lots a traiter : (ID de groupe ou None, fichier de contacts)
+    if args.all_groups:
+        group_files = find_group_files(Path("."))
+        if not group_files:
+            logger.warning("Aucun fichier contacts.group.<ID>.csv trouve. "
+                           "Rien a faire.")
+            return 0
+        jobs = list(group_files.items())
+    else:
+        jobs = [(args.group or None, args.file)]
 
-    todays = birthdays_today(contacts, today)
-    if not todays:
-        logger.info("Aucun anniversaire le %s. Rien a faire.", today.isoformat())
-        return 0
+    def scoped_key(contact: Contact, group_id) -> str:
+        """Cle anti-doublon : la meme personne peut etre souhaitee dans
+        plusieurs groupes ET individuellement le meme jour."""
+        return f"group:{group_id}:{contact.key}" if group_id else contact.key
 
-    already = load_sent_today(today)
-    pending = [c for c in todays if c.key not in already]
+    exit_code = 0
+    total_sent = 0
+    attempts = 0
 
-    destination = f"groupe {group_id}" if group_id else "envoi individuel"
-    logger.info("%d anniversaire(s) aujourd'hui, %d a traiter (%s).",
-                len(todays), len(pending), destination)
-
-    if not args.send:
-        logger.info("MODE SIMULATION - rien n'est envoye. Ajoutez --send pour envoyer.")
-        for c in pending:
-            cible = f"groupe {group_id}" if group_id else f"{c.phone}"
-            logger.info("  -> [%s] %s : %s", cible, c.name, c.rendered_message())
-        return 0
-
-    sent = set(already)
-    for i, c in enumerate(pending):
-        logger.info("Envoi pour %s...", c.name)
+    for group_id, path in jobs:
+        destination = f"groupe {group_id}" if group_id else "envoi individuel"
         try:
-            send_message(c, group_id, wait_time=args.wait)
-            sent.add(c.key)
-            mark_sent(today, sent)
-        except Exception as exc:  # pylint: disable=broad-except
-            logger.error("Echec pour %s : %s", c.name, exc)
-        if i < len(pending) - 1:
-            time.sleep(5)  # petite pause entre deux onglets WhatsApp Web
+            contacts = load_contacts(path, args.message, group_mode=bool(group_id))
+        except (FileNotFoundError, ValueError) as exc:
+            logger.error("%s", exc)
+            exit_code = 1
+            continue
 
-    logger.info("Termine : %d message(s) envoye(s).", len(sent) - len(already))
-    return 0
+        todays = birthdays_today(contacts, today)
+        if not todays:
+            logger.info("[%s] aucun anniversaire le %s.",
+                        destination, today.isoformat())
+            continue
+
+        already = load_sent_today(today)
+        pending = [c for c in todays if scoped_key(c, group_id) not in already]
+        logger.info("[%s] %d anniversaire(s) aujourd'hui, %d a traiter.",
+                    destination, len(todays), len(pending))
+
+        if not args.send:
+            logger.info("MODE SIMULATION - rien n'est envoye. "
+                        "Ajoutez --send pour envoyer.")
+            for c in pending:
+                cible = destination if group_id else c.phone
+                logger.info("  -> [%s] %s : %s", cible, c.name,
+                            c.rendered_message())
+            continue
+
+        sent = set(already)
+        for c in pending:
+            if attempts:
+                time.sleep(5)  # petite pause entre deux onglets WhatsApp Web
+            attempts += 1
+            logger.info("[%s] envoi pour %s...", destination, c.name)
+            try:
+                send_message(c, group_id, wait_time=args.wait)
+                sent.add(scoped_key(c, group_id))
+                mark_sent(today, sent)
+                total_sent += 1
+            except Exception as exc:  # pylint: disable=broad-except
+                logger.error("Echec pour %s : %s", c.name, exc)
+                exit_code = 1
+
+    if args.send:
+        logger.info("Termine : %d message(s) envoye(s).", total_sent)
+    return exit_code
 
 
 if __name__ == "__main__":

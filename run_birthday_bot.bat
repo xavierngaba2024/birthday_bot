@@ -20,18 +20,23 @@ set PYTHON=py
 where py >nul 2>nul || set PYTHON=python
 
 echo [Birthday Bot] Lancement (envoi reel)...
+set ERR=0
 
-REM --- ENVOI INDIVIDUEL (a chaque contact) ---
-%PYTHON% birthday_bot.py --send
+REM --- ENVOI INDIVIDUEL (contacts.csv, s'il existe) ---
+if exist contacts.csv (
+    %PYTHON% birthday_bot.py --send
+    if errorlevel 1 set ERR=1
+)
 
-REM --- OU ENVOI DANS UN GROUPE ---
-REM Commentez la ligne ci-dessus, decommentez celle-ci et
-REM remplacez l'ID par celui de votre groupe :
-REM %PYTHON% birthday_bot.py --send --group AB123CDEFGHijklmn
+REM --- ENVOI DANS LES GROUPES ---
+REM Parcourt tous les fichiers contacts.group.<IDGROUPE>.csv du dossier
+REM et envoie les anniversaires de chacun dans le groupe correspondant.
+%PYTHON% birthday_bot.py --send --all-groups
+if errorlevel 1 set ERR=1
 
 REM En cas d'erreur, garder la fenetre ouverte pour lire le message
-if errorlevel 1 (
+if %ERR%==1 (
     echo.
-    echo [Birthday Bot] Erreur - voir le message ci-dessus.
+    echo [Birthday Bot] Erreur - voir les messages ci-dessus.
     pause
 )
