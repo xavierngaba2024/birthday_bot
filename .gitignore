@@ -1,7 +1,7 @@
-# Donnees personnelles : tout fichier de contacts est ignore,
+# Donnees personnelles : tout fichier CSV est ignore,
 # sauf les modeles *.example.csv fournis avec le projet.
-contacts*.csv
-!contacts*.example.csv
+*.csv
+!*.example.csv
 .sent_log.json
 
 # Python
