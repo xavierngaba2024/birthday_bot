@@ -1,0 +1,8 @@
+# Donnees personnelles : vrais contacts et journal d'envoi
+contacts.csv
+.sent_log.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/

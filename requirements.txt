@@ -1,0 +1,3 @@
+# Unique dependance reelle : pilote WhatsApp Web pour l'envoi.
+# Le mode simulation (par defaut) fonctionne SANS cette dependance.
+pywhatkit==5.4
