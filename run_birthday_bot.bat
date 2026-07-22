@@ -10,9 +10,9 @@ cd /d "%~dp0"
 
 REM Laisser le temps au reseau et a WhatsApp Web d'etre prets
 REM (augmentez la valeur si votre PC met du temps a se connecter)
-echo [Birthday Bot] Attente de 45 s que le reseau soit pret...
+echo [Birthday Bot] Attente de 10 s que le reseau soit pret...
 echo [Birthday Bot] (fermez cette fenetre pour annuler)
-timeout /t 45 /nobreak >nul
+timeout /t 10 /nobreak >nul
 
 REM Utiliser le lanceur "py" si disponible (fiable sur Windows,
 REM meme si "python" n'est pas dans le PATH), sinon "python".

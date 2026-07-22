@@ -91,8 +91,9 @@ Les lignes invalides sont ignorées avec un avertissement.
 ## Automatiser au démarrage de Windows
 
 Un lanceur `run_birthday_bot.bat` est fourni. Il se place dans le bon
-dossier, attend 45 s que la connexion et WhatsApp Web soient prêts, puis
-lance le bot. Pour le mode groupe, ouvrez le `.bat` et décommentez la
+dossier, attend 10 s que la connexion et WhatsApp Web soient prêts, puis
+lance le bot (augmentez ce délai dans le `.bat` si votre PC met du temps
+à se connecter au réseau après le démarrage). Pour le mode groupe, ouvrez le `.bat` et décommentez la
 ligne prévue (ou renseignez `WHATSAPP_GROUP_ID`).
 
 **Planificateur de tâches Windows** :
