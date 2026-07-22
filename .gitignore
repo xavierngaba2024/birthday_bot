@@ -3,6 +3,8 @@
 *.csv
 !*.example.csv
 .sent_log.json
+# Journal genere par pywhatkit (numeros et messages envoyes)
+PyWhatKit_DB.txt
 
 # Python
 __pycache__/
