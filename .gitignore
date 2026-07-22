@@ -1,5 +1,7 @@
-# Donnees personnelles : vrais contacts et journal d'envoi
-contacts.csv
+# Donnees personnelles : tout fichier de contacts est ignore,
+# sauf les modeles *.example.csv fournis avec le projet.
+contacts*.csv
+!contacts*.example.csv
 .sent_log.json
 
 # Python
